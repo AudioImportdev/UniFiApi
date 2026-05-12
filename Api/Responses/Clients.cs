@@ -145,6 +145,18 @@ namespace KoenZomers.UniFi.Api.Responses
         public bool? IsBlocked { get; set; }
 
         /// <summary>
+        /// String indicating the switch mac addres the client is currently connected to
+        /// </summary>
+        [JsonPropertyName("sw_mac")]
+        public string? SwitchMac { get; set; }
+
+        /// <summary>
+        /// Integer indicating the switch port index the client is currently connected at
+        /// </summary>
+        [JsonPropertyName("sw_port")]
+        public int? SwitchPort { get; set; }
+
+        /// <summary>
         /// Boolean indicating if this is a wired client (true) or a client connected through WiFi (false)
         /// </summary>
         [JsonPropertyName("is_wired")]

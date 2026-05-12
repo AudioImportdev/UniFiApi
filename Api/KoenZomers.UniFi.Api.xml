@@ -339,6 +339,16 @@
             Boolean indicating if the client is currently blocked from accessing the UniFi network
             </summary>
         </member>
+        <member name="P:KoenZomers.UniFi.Api.Responses.Clients.SwitchMac">
+            <summary>
+            String indicating the switch mac addres the client is currently connected to
+            </summary>
+        </member>
+        <member name="P:KoenZomers.UniFi.Api.Responses.Clients.SwitchPort">
+            <summary>
+            Integer indicating the switch port index the client is currently connected at
+            </summary>
+        </member>
         <member name="P:KoenZomers.UniFi.Api.Responses.Clients.IsWired">
             <summary>
             Boolean indicating if this is a wired client (true) or a client connected through WiFi (false)
