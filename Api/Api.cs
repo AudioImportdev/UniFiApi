@@ -4,6 +4,7 @@ using System.Linq;
 using System.Net;
 using System.Text;
 using System.Threading.Tasks;
+using System.Text.Json.Nodes;
 
 namespace KoenZomers.UniFi.Api;
 
@@ -352,6 +353,73 @@ public class Api
     }
 
     /// <summary>
+    /// Safely updates a specific port's PoE state without overwriting other port configurations.
+    /// </summary>
+    /// <param name="switchId">The internal Unifi _id of the switch (NOT the MAC address)</param>
+    /// <param name="portUpdates">A dictionary where Key = Port index, Value = PoE mode (e.g., "auto", "passthrough", "off")</param>
+    public async Task SetSwitchPortsPoeAsync(string switchId, Dictionary<int, string> portUpdates)
+    {
+        var deviceUri = new Uri($"/api/s/{SiteId}/rest/device/{switchId}", UriKind.Relative);
+        var rawJson = await EnsureAuthenticatedGetRequest(deviceUri);
+        var responseNode = JsonNode.Parse(rawJson)?.AsObject();
+        var dataArray = responseNode?["data"]?.AsArray();
+
+        if (dataArray == null || dataArray.Count == 0)
+            throw new Exception("Device data not found.");
+
+        var deviceData = dataArray[0]!.AsObject();
+
+        var portOverrides = new JsonArray();
+        if (deviceData.ContainsKey("port_overrides") && deviceData["port_overrides"] != null)
+        {
+            portOverrides = JsonNode.Parse(deviceData["port_overrides"]!.ToJsonString())!.AsArray();
+        }
+
+        foreach (var portUpdate in portUpdates)
+        {
+            var portIdx = portUpdate.Key;
+            var poeMode = portUpdate.Value;
+
+            var targetPort = portOverrides.FirstOrDefault(p => p?["port_idx"]?.GetValue<int>() == portIdx);
+
+            if (targetPort != null)
+            {
+                targetPort["poe_mode"] = poeMode;
+            }
+            else
+            {
+                portOverrides.Add(new JsonObject
+                {
+                    ["port_idx"] = portIdx,
+                    ["poe_mode"] = poeMode
+                });
+            }
+
+        }
+
+        var payload = new JsonObject { ["port_overrides"] = portOverrides };
+        await EnsureAuthenticatedPutRequest(deviceUri, payload.ToJsonString());
+    }
+
+    /// <summary>
+    /// Safely updates a specific port's PoE state without overwriting other port configurations.
+    /// </summary>
+    /// <param name="switchMac">The MAC address of the switch (e.g. "aa:bb:cc:dd:ee:ff")</param>
+    /// <param name="portUpdates">A dictionary where Key = Port index, Value = PoE mode (e.g., "auto", "passthrough", "off")</param>
+    public async Task SetSwitchPortsPoeByMacAsync(string switchMac, Dictionary<int, string> portUpdates)
+    {
+        var devices = await GetDevices();
+        var targetSwitch = devices?.FirstOrDefault(d =>
+            string.Equals(d.MacAddress, switchMac, StringComparison.OrdinalIgnoreCase));
+
+        if (targetSwitch == null || string.IsNullOrEmpty(targetSwitch.Id))
+            throw new Exception($"Could not find a switch with MAC address {switchMac} in the controller.");
+
+        await SetSwitchPortsPoeAsync(targetSwitch.Id, portUpdates);
+    }
+
+
+    /// <summary>
     /// Gets all sites registered with UniFi
     /// </summary>
     /// <returns>List with all sites</returns>
@@ -577,6 +645,27 @@ public class Api
         });
 
         var resultString = await EnsureAuthenticatedPostRequest(new Uri($"/api/s/{SiteId}/cmd/stamgr", UriKind.Relative), payload);
+        var resultJson = System.Text.Json.JsonSerializer.Deserialize<Responses.ResponseEnvelope<Responses.BaseResponse>>(resultString);
+
+        return resultJson is not null && resultJson.meta.ResultCode.Equals("ok", StringComparison.InvariantCultureIgnoreCase);
+    }
+
+    /// <summary>
+    /// Power cycles a specific PoE port on a switch.
+    /// </summary>
+    /// <param name="switchMac">The MAC address of the switch (e.g., "aa:bb:cc:dd:ee:ff")</param>
+    /// <param name="portIdx">The port number to power cycle</param>
+    /// <returns>True if the command was successfully accepted by the controller</returns>
+    public async Task<bool> PowerCycleSwitchPortAsync(string switchMac, int portIdx)
+    {
+        string payload = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            cmd = "power-cycle",
+            mac = switchMac.ToLowerInvariant(),
+            port_idx = portIdx
+        });
+
+        var resultString = await EnsureAuthenticatedPostRequest(new Uri($"/api/s/{SiteId}/cmd/devmgr", UriKind.Relative), payload);
         var resultJson = System.Text.Json.JsonSerializer.Deserialize<Responses.ResponseEnvelope<Responses.BaseResponse>>(resultString);
 
         return resultJson is not null && resultJson.meta.ResultCode.Equals("ok", StringComparison.InvariantCultureIgnoreCase);

@@ -75,6 +75,14 @@
             <param name="postData">The HTTP POST message body contents</param>
             <returns>String containing the result from the UniFi service</returns>
         </member>
+        <member name="M:KoenZomers.UniFi.Api.Api.EnsureAuthenticatedPutRequest(System.Uri,System.String)">
+            <summary>
+            Makes a PUT request towards the UniFi Controller while trying to ensure the session is authenticated
+            </summary>
+            <param name="uri">Full URL to the UniFi controller to PUT data to</param>
+            <param name="putData">The HTTP PUT message body contents</param>
+            <returns>String containing the result from the UniFi service</returns>
+        </member>
         <member name="M:KoenZomers.UniFi.Api.Api.GetActiveClients">
             <summary>
             Gets the currently connected clients
@@ -92,6 +100,20 @@
             Gets a list with all UniFi devices
             </summary>
             <returns>List with all UniFi devices</returns>
+        </member>
+        <member name="M:KoenZomers.UniFi.Api.Api.SetSwitchPortsPoeAsync(System.String,System.Collections.Generic.Dictionary{System.Int32,System.String})">
+            <summary>
+            Safely updates a specific port's PoE state without overwriting other port configurations.
+            </summary>
+            <param name="switchId">The internal Unifi _id of the switch (NOT the MAC address)</param>
+            <param name="portUpdates">A dictionary where Key = Port index, Value = PoE mode (e.g., "auto", "passthrough", "off")</param>
+        </member>
+        <member name="M:KoenZomers.UniFi.Api.Api.SetSwitchPortsPoeByMacAsync(System.String,System.Collections.Generic.Dictionary{System.Int32,System.String})">
+            <summary>
+            Safely updates a specific port's PoE state without overwriting other port configurations.
+            </summary>
+            <param name="switchMac">The MAC address of the switch (e.g. "aa:bb:cc:dd:ee:ff")</param>
+            <param name="portUpdates">A dictionary where Key = Port index, Value = PoE mode (e.g., "auto", "passthrough", "off")</param>
         </member>
         <member name="M:KoenZomers.UniFi.Api.Api.GetSites">
             <summary>
@@ -196,6 +218,14 @@
             <param name="macAddress">The MAC address of client to reconnect</param>
             <returns>True if the reconnect was successful or False if it failed</returns>
         </member>
+        <member name="M:KoenZomers.UniFi.Api.Api.PowerCycleSwitchPortAsync(System.String,System.Int32)">
+            <summary>
+            Power cycles a specific PoE port on a switch.
+            </summary>
+            <param name="switchMac">The MAC address of the switch (e.g., "aa:bb:cc:dd:ee:ff")</param>
+            <param name="portIdx">The port number to power cycle</param>
+            <returns>True if the command was successfully accepted by the controller</returns>
+        </member>
         <member name="T:KoenZomers.UniFi.Api.CookieUtility">
             <summary>
             Internal utility class for working with cookies
@@ -237,6 +267,14 @@
             <param name="url">Url to POST the postData to</param>
             <param name="postData">Data to send to the UniFi service, typically a JSON payload</param>
             <returns>The website contents returned by the webserver after posting the data</returns>
+        </member>
+        <member name="M:KoenZomers.UniFi.Api.HttpUtility.PutRequest(System.Uri,System.String)">
+            <summary>
+            Sends a PUT request towards UniFi
+            </summary>
+            <param name="url">Url to PUT the putData to</param>
+            <param name="putData">Data to send to the UniFi service, typically a JSON payload</param>
+            <returns>The website contents returned by the webserver after putting the data</returns>
         </member>
         <member name="M:KoenZomers.UniFi.Api.HttpUtility.AuthenticateViaJsonPostMethod(System.Uri,System.String,System.String)">
             <summary>
