@@ -99,6 +99,35 @@ internal class HttpUtility
         return responseBody;
     }
 
+
+    /// <summary>
+    /// Sends a PUT request towards UniFi
+    /// </summary>
+    /// <param name="url">Url to PUT the putData to</param>
+    /// <param name="putData">Data to send to the UniFi service, typically a JSON payload</param>
+    /// <returns>The website contents returned by the webserver after putting the data</returns>
+    public async Task<string> PutRequest(Uri url, string putData)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Put, url);
+        request.Headers.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
+        request.Headers.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("text/plain"));
+        request.Headers.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("*/*"));
+
+        // Check if the have a Cross Site Request Forgery cookie and if so, add it as the X-Csrf-Token header which is required by UniFi when making a PUT
+        var csrfCookie = _cookieContainer.GetAllCookies().FirstOrDefault(c => c.Name == "csrf_token");
+        if (csrfCookie != null)
+        {
+            request.Headers.Add("X-Csrf-Token", csrfCookie.Value);
+        }
+
+        request.Content = new StringContent(putData, Encoding.UTF8, "application/json");
+
+        var response = await HttpClient.SendAsync(request);
+
+        var responseBody = await response.Content.ReadAsStringAsync();
+        return responseBody;
+    }
+
     /// <summary>
     /// Sends a POST request with JSON variables to authenticate against UniFi
     /// </summary>

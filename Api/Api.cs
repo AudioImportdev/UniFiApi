@@ -242,6 +242,40 @@ public class Api
     }
 
     /// <summary>
+    /// Makes a PUT request towards the UniFi Controller while trying to ensure the session is authenticated
+    /// </summary>
+    /// <param name="uri">Full URL to the UniFi controller to PUT data to</param>
+    /// <param name="putData">The HTTP PUT message body contents</param>
+    /// <returns>String containing the result from the UniFi service</returns>
+    public async Task<string> EnsureAuthenticatedPutRequest(Uri uri, string putData)
+    {
+        if (!IsAuthenticated)
+        {
+            if (string.IsNullOrEmpty(_username) || string.IsNullOrEmpty(_password))
+                throw new InvalidOperationException("No active connection yet and unable to reauthenticate due to missing credentials. Call Authenticate first.");
+
+            if (!await Reauthenticate())
+                throw new InvalidOperationException("No active connection yet and unable to reauthenticate using cached credentials. Call Authenticate first.");
+        }
+
+        try
+        {
+            return await _httpUtility!.PutRequest(uri, putData);
+        }
+        catch (WebException e) when (e.Message.Contains("401"))
+        {
+            if (IsAuthenticated)
+            {
+                if (!await Reauthenticate())
+                    throw new InvalidOperationException("Unable to reauthenticate using cached credentials. Call Authenticate first.");
+
+                return await _httpUtility!.PutRequest(uri, putData);
+            }
+            throw;
+        }
+    }
+
+    /// <summary>
     /// Gets the currently connected clients
     /// </summary>
     /// <returns>List with connected clients</returns>
