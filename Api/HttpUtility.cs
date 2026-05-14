@@ -1,10 +1,12 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Security;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace KoenZomers.UniFi.Api;
@@ -24,7 +26,12 @@ internal class HttpUtility
     /// <summary>
     /// HttpClient used to perform requests
     /// </summary>
-    internal HttpClient HttpClient;
+    internal HttpClient HttpClient = null!;
+
+    private readonly Uri _baseUri;
+    private readonly short _timeout;
+    private readonly bool _ignoreSslValidation;
+
 
     #endregion
 
@@ -32,23 +39,11 @@ internal class HttpUtility
 
     public HttpUtility(Uri baseUri, short timeout = 10000, bool ignoreSslValidation = false)
     {
-        var httpClientHandler = new HttpClientHandler
-        {
-            CookieContainer = _cookieContainer,
-            UseCookies = true,
-            AllowAutoRedirect = true
-        };
+        _baseUri = baseUri;
+        _timeout = timeout;
+        _ignoreSslValidation = ignoreSslValidation;
 
-        if (ignoreSslValidation)
-        {
-            httpClientHandler.ServerCertificateCustomValidationCallback = (HttpRequestMessage req, X509Certificate2 cert, X509Chain chain, SslPolicyErrors errors) => true;
-        }
-
-        HttpClient = new HttpClient(httpClientHandler)
-        {
-            BaseAddress = baseUri,
-            Timeout = TimeSpan.FromMilliseconds(timeout)
-        };
+        ClearCookies();
     }
 
     #endregion
@@ -58,6 +53,24 @@ internal class HttpUtility
     public void ClearCookies()
     {
         _cookieContainer = new CookieContainer();
+
+        var httpClientHandler = new HttpClientHandler
+        {
+            CookieContainer = _cookieContainer,
+            UseCookies = true,
+            AllowAutoRedirect = true
+        };
+
+        if (_ignoreSslValidation)
+        {
+            httpClientHandler.ServerCertificateCustomValidationCallback = (HttpRequestMessage req, X509Certificate2 cert, X509Chain chain, SslPolicyErrors errors) => true;
+        }
+
+        HttpClient = new HttpClient(httpClientHandler)
+        {
+            BaseAddress = _baseUri,
+            Timeout = TimeSpan.FromMilliseconds(_timeout)
+        };
     }
 
     /// <summary>
@@ -85,8 +98,7 @@ internal class HttpUtility
         request.Headers.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("*/*"));
 
         // Check if the have a Cross Site Request Forgery cookie and if so, add it as the X-Csrf-Token header which is required by UniFi when making a POST
-        Uri absoluteUrl = url.IsAbsoluteUri ? url : new Uri(HttpClient.BaseAddress!, url);
-        var csrfCookie = _cookieContainer.GetCookies(absoluteUrl).FirstOrDefault(c => c.Name == "csrf_token");
+        var csrfCookie = _cookieContainer.GetAllCookies()["csrf_token"];
         if (csrfCookie != null)
         {
             request.Headers.Add("X-Csrf-Token", csrfCookie.Value);
@@ -95,9 +107,7 @@ internal class HttpUtility
         request.Content = new StringContent(postData, Encoding.UTF8, "application/json");
 
         var response = await HttpClient.SendAsync(request);
-
-        var responseBody = await response.Content.ReadAsStringAsync();
-        return responseBody;
+        return await response.Content.ReadAsStringAsync();
     }
 
 
@@ -115,8 +125,7 @@ internal class HttpUtility
         request.Headers.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("*/*"));
 
         // Check if the have a Cross Site Request Forgery cookie and if so, add it as the X-Csrf-Token header which is required by UniFi when making a PUT
-        Uri absoluteUrl = url.IsAbsoluteUri ? url : new Uri(HttpClient.BaseAddress!, url);
-        var csrfCookie = _cookieContainer.GetCookies(absoluteUrl).FirstOrDefault(c => c.Name == "csrf_token");
+        var csrfCookie = _cookieContainer.GetAllCookies()["csrf_token"];
         if (csrfCookie != null)
         {
             request.Headers.Add("X-Csrf-Token", csrfCookie.Value);
