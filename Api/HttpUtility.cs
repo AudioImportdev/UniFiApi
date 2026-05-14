@@ -85,7 +85,8 @@ internal class HttpUtility
         request.Headers.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("*/*"));
 
         // Check if the have a Cross Site Request Forgery cookie and if so, add it as the X-Csrf-Token header which is required by UniFi when making a POST
-        var csrfCookie = _cookieContainer.GetAllCookies().FirstOrDefault(c => c.Name == "csrf_token");
+        Uri absoluteUrl = url.IsAbsoluteUri ? url : new Uri(HttpClient.BaseAddress!, url);
+        var csrfCookie = _cookieContainer.GetCookies(absoluteUrl).FirstOrDefault(c => c.Name == "csrf_token");
         if (csrfCookie != null)
         {
             request.Headers.Add("X-Csrf-Token", csrfCookie.Value);
@@ -114,7 +115,8 @@ internal class HttpUtility
         request.Headers.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("*/*"));
 
         // Check if the have a Cross Site Request Forgery cookie and if so, add it as the X-Csrf-Token header which is required by UniFi when making a PUT
-        var csrfCookie = _cookieContainer.GetAllCookies().FirstOrDefault(c => c.Name == "csrf_token");
+        Uri absoluteUrl = url.IsAbsoluteUri ? url : new Uri(HttpClient.BaseAddress!, url);
+        var csrfCookie = _cookieContainer.GetCookies(absoluteUrl).FirstOrDefault(c => c.Name == "csrf_token");
         if (csrfCookie != null)
         {
             request.Headers.Add("X-Csrf-Token", csrfCookie.Value);

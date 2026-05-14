@@ -355,11 +355,11 @@ public class Api
     /// <summary>
     /// Safely updates a specific port's PoE state without overwriting other port configurations.
     /// </summary>
-    /// <param name="switchId">The internal Unifi _id of the switch (NOT the MAC address)</param>
+    /// <param name="switchMac">The MAC address of the switch (e.g. "aa:bb:cc:dd:ee:ff")</param>
     /// <param name="portUpdates">A dictionary where Key = Port index, Value = PoE mode (e.g., "auto", "passthrough", "off")</param>
-    public async Task SetSwitchPortsPoeAsync(string switchId, Dictionary<int, string> portUpdates)
+    public async Task SetSwitchPortsPoeByMacAsync(string switchMac, Dictionary<int, string> portUpdates)
     {
-        var deviceUri = new Uri($"/api/s/{SiteId}/rest/device/{switchId}", UriKind.Relative);
+        var deviceUri = new Uri($"/api/s/{SiteId}/stat/device", UriKind.Relative);
         var rawJson = await EnsureAuthenticatedGetRequest(deviceUri);
         var responseNode = JsonNode.Parse(rawJson)?.AsObject();
         var dataArray = responseNode?["data"]?.AsArray();
@@ -367,7 +367,27 @@ public class Api
         if (dataArray == null || dataArray.Count == 0)
             throw new Exception("Device data not found.");
 
-        var deviceData = dataArray[0]!.AsObject();
+        JsonObject? deviceData = null;
+        foreach (var data in dataArray)
+        {
+            if (string.Equals(data?["mac"]?.ToString(), switchMac, StringComparison.OrdinalIgnoreCase))
+            {
+                deviceData = data?.AsObject();
+                break;
+            }
+        }
+
+        if (deviceData is null)
+            throw new Exception($"Switch {switchMac} not found.");
+
+        string switchId = deviceData["device_id"]?.GetValue<string>()
+                   ?? deviceData["_id"]?.GetValue<string>()
+                   ?? "";
+
+        if (string.IsNullOrEmpty(switchId))
+        {
+            throw new Exception("Switch is found but the controller did not return its ID.");
+        }
 
         var portOverrides = new JsonArray();
         if (deviceData.ContainsKey("port_overrides") && deviceData["port_overrides"] != null)
@@ -397,25 +417,14 @@ public class Api
 
         }
 
+        var putUri = new Uri($"/api/s/{SiteId}/rest/device/{switchId}", UriKind.Relative);
         var payload = new JsonObject { ["port_overrides"] = portOverrides };
-        await EnsureAuthenticatedPutRequest(deviceUri, payload.ToJsonString());
-    }
+        var result = await EnsureAuthenticatedPutRequest(putUri, payload.ToJsonString());
 
-    /// <summary>
-    /// Safely updates a specific port's PoE state without overwriting other port configurations.
-    /// </summary>
-    /// <param name="switchMac">The MAC address of the switch (e.g. "aa:bb:cc:dd:ee:ff")</param>
-    /// <param name="portUpdates">A dictionary where Key = Port index, Value = PoE mode (e.g., "auto", "passthrough", "off")</param>
-    public async Task SetSwitchPortsPoeByMacAsync(string switchMac, Dictionary<int, string> portUpdates)
-    {
-        var devices = await GetDevices();
-        var targetSwitch = devices?.FirstOrDefault(d =>
-            string.Equals(d.MacAddress, switchMac, StringComparison.OrdinalIgnoreCase));
-
-        if (targetSwitch == null || string.IsNullOrEmpty(targetSwitch.Id))
-            throw new Exception($"Could not find a switch with MAC address {switchMac} in the controller.");
-
-        await SetSwitchPortsPoeAsync(targetSwitch.Id, portUpdates);
+        if (result.TrimStart().StartsWith('<'))
+        {
+            throw new Exception($"UniFi controller returned an HTML error. Response: {result}");
+        }
     }
 
 
@@ -665,9 +674,13 @@ public class Api
             port_idx = portIdx
         });
 
-        var resultString = await EnsureAuthenticatedPostRequest(new Uri($"/api/s/{SiteId}/cmd/devmgr", UriKind.Relative), payload);
-        var resultJson = System.Text.Json.JsonSerializer.Deserialize<Responses.ResponseEnvelope<Responses.BaseResponse>>(resultString);
-
+        var devmgrUri = new Uri($"/api/s/{SiteId}/cmd/devmgr", UriKind.Relative);
+        var result = await EnsureAuthenticatedPostRequest(devmgrUri, payload);
+        if (result.TrimStart().StartsWith('<'))
+        {
+            throw new Exception($"UniFi controller returned an HTML error. Response: {result}");
+        }
+        var resultJson = System.Text.Json.JsonSerializer.Deserialize<Responses.ResponseEnvelope<Responses.BaseResponse>>(result);
         return resultJson is not null && resultJson.meta.ResultCode.Equals("ok", StringComparison.InvariantCultureIgnoreCase);
     }
 

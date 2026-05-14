@@ -101,13 +101,6 @@
             </summary>
             <returns>List with all UniFi devices</returns>
         </member>
-        <member name="M:KoenZomers.UniFi.Api.Api.SetSwitchPortsPoeAsync(System.String,System.Collections.Generic.Dictionary{System.Int32,System.String})">
-            <summary>
-            Safely updates a specific port's PoE state without overwriting other port configurations.
-            </summary>
-            <param name="switchId">The internal Unifi _id of the switch (NOT the MAC address)</param>
-            <param name="portUpdates">A dictionary where Key = Port index, Value = PoE mode (e.g., "auto", "passthrough", "off")</param>
-        </member>
         <member name="M:KoenZomers.UniFi.Api.Api.SetSwitchPortsPoeByMacAsync(System.String,System.Collections.Generic.Dictionary{System.Int32,System.String})">
             <summary>
             Safely updates a specific port's PoE state without overwriting other port configurations.
@@ -225,18 +218,6 @@
             <param name="switchMac">The MAC address of the switch (e.g., "aa:bb:cc:dd:ee:ff")</param>
             <param name="portIdx">The port number to power cycle</param>
             <returns>True if the command was successfully accepted by the controller</returns>
-        </member>
-        <member name="T:KoenZomers.UniFi.Api.CookieUtility">
-            <summary>
-            Internal utility class for working with cookies
-            </summary>
-        </member>
-        <member name="M:KoenZomers.UniFi.Api.CookieUtility.GetAllCookies(System.Net.CookieContainer)">
-            <summary>
-            Extracts all the cookies from a cookie container so the contents can be read and used
-            </summary>
-            <remarks>Code sample retrieved from https://stackoverflow.com/a/31900670/1271303 </remarks>
-            <returns>IEnumerable containing all cookies available in the CookieContainer</returns>
         </member>
         <member name="T:KoenZomers.UniFi.Api.HttpUtility">
             <summary>
